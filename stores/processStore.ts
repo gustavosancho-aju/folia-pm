@@ -15,6 +15,7 @@ interface ProcessState {
   // Actions
   setViewMode: (mode: 'table' | 'kanban') => void
   fetchProcesses: () => Promise<void>
+  fetchProcessesByCompany: (companyId: string) => Promise<void>
   fetchSummary: () => Promise<void>
   createProcess: (data: CreateProcessInput) => Promise<ProcessWithTaskCounts | null>
   updateProcess: (id: string, data: UpdateProcessInput) => Promise<void>
@@ -40,6 +41,24 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
     }
     const data = await res.json()
     set({ processes: data, isLoading: false })
+  },
+
+  fetchProcessesByCompany: async (companyId: string) => {
+    set({ isLoading: true, error: null })
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from('processes_with_task_counts')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      set({ error: 'Erro ao carregar processos', isLoading: false })
+      return
+    }
+
+    set({ processes: data || [], isLoading: false })
   },
 
   fetchSummary: async () => {
