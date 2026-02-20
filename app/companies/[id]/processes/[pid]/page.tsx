@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DeadlineBadge } from '@/components/shared/DeadlineBadge'
 import { PROCESS_STATUS_LABELS } from '@/lib/constants'
 import { useProcessStore } from '@/stores/processStore'
+import { useTasks } from '@/hooks/useTasks'
 import type { ProcessWithTaskCounts } from '@/types/database.types'
 import type { CreateProcessInput } from '@/lib/validations'
 import { RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts'
@@ -27,6 +28,7 @@ export default function ProcessDetailPage({
   const router = useRouter()
 
   const { processes, fetchProcessesByCompany, updateProcess, deleteProcess, initRealtime } = useProcessStore()
+  const { tasks } = useTasks(processId)
 
   const [process, setProcess] = useState<ProcessWithTaskCounts | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -54,14 +56,23 @@ export default function ProcessDetailPage({
 
   async function handleEdit(data: CreateProcessInput) {
     setEditLoading(true)
-    await updateProcess(processId, data)
-    setEditLoading(false)
-    setEditOpen(false)
+    try {
+      await updateProcess(processId, data)
+      setEditOpen(false)
+    } catch (error) {
+      console.error('Erro ao editar processo:', error)
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   async function handleDelete() {
-    await deleteProcess(processId)
-    router.push(`/companies/${companyId}/processes`)
+    try {
+      await deleteProcess(processId)
+      router.push(`/companies/${companyId}/processes`)
+    } catch (error) {
+      console.error('Erro ao deletar processo:', error)
+    }
   }
 
   if (!process) {
@@ -130,7 +141,7 @@ export default function ProcessDetailPage({
       </div>
 
       {/* Task Board */}
-      <TaskBoard processId={processId} />
+      <TaskBoard processId={processId} tasks={tasks} />
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
@@ -139,7 +150,7 @@ export default function ProcessDetailPage({
             <DialogTitle>Editar Processo</DialogTitle>
           </DialogHeader>
           <ProcessForm
-            defaultValues={process}
+            initialData={process}
             onSubmit={handleEdit}
             onCancel={() => setEditOpen(false)}
             isLoading={editLoading}
@@ -154,8 +165,8 @@ export default function ProcessDetailPage({
         onConfirm={handleDelete}
         title="Deletar Processo"
         description={`Tem certeza que deseja deletar "${process.title}"? Todas as tarefas associadas também serão deletadas. Esta ação não pode ser desfeita.`}
-        confirmText="Deletar"
-        variant="destructive"
+        confirmLabel="Deletar"
+        destructive
       />
     </div>
   )

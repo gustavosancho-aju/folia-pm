@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { ThemeProvider } from 'next-themes'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -13,7 +15,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

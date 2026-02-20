@@ -11,6 +11,7 @@ interface ProcessState {
   isLoading: boolean
   error: string | null
   viewMode: 'table' | 'kanban'
+  activeCompanyId: string | null
 
   // Actions
   setViewMode: (mode: 'table' | 'kanban') => void
@@ -29,6 +30,7 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
   isLoading: false,
   error: null,
   viewMode: 'table',
+  activeCompanyId: null,
 
   setViewMode: (mode) => set({ viewMode: mode }),
 
@@ -44,7 +46,7 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
   },
 
   fetchProcessesByCompany: async (companyId: string) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, activeCompanyId: companyId })
     const supabase = createClient()
 
     const { data, error } = await supabase
@@ -75,6 +77,7 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
   createProcess: async (input) => {
     const optimistic: ProcessWithTaskCounts = {
       id: crypto.randomUUID(),
+      company_id: input.company_id,
       title: input.title,
       description: input.description ?? null,
       status: (input.status ?? 'active') as ProcessStatus,
@@ -125,8 +128,13 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
     })
 
     if (!res.ok) {
-      // Revert by re-fetching
-      get().fetchProcesses()
+      // Revert by re-fetching with correct scope
+      const companyId = get().activeCompanyId
+      if (companyId) {
+        get().fetchProcessesByCompany(companyId)
+      } else {
+        get().fetchProcesses()
+      }
     }
   },
 
@@ -145,11 +153,21 @@ export const useProcessStore = create<ProcessState>((set, get) => ({
     const channel = supabase
       .channel('processes-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'processes' }, () => {
-        get().fetchProcesses()
+        const companyId = get().activeCompanyId
+        if (companyId) {
+          get().fetchProcessesByCompany(companyId)
+        } else {
+          get().fetchProcesses()
+        }
         get().fetchSummary()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
-        get().fetchProcesses()
+        const companyId = get().activeCompanyId
+        if (companyId) {
+          get().fetchProcessesByCompany(companyId)
+        } else {
+          get().fetchProcesses()
+        }
         get().fetchSummary()
       })
       .subscribe()

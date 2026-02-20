@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, FolderKanban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ProcessTable } from '@/components/processes/ProcessTable'
@@ -24,18 +24,27 @@ export default function CompanyProcessesPage({ params }: { params: Promise<{ id:
 
   async function handleCreate(data: CreateProcessInput) {
     setSubmitting(true)
-    // Add company_id to the data
-    await createProcess({ ...data, company_id: companyId })
-    setSubmitting(false)
-    setCreateOpen(false)
+    try {
+      await createProcess({ ...data, company_id: companyId })
+      setCreateOpen(false)
+    } catch (error) {
+      console.error('Erro ao criar processo:', error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function handleEdit(data: CreateProcessInput) {
     if (!editTarget) return
     setSubmitting(true)
-    await updateProcess(editTarget.id, data)
-    setSubmitting(false)
-    setEditTarget(null)
+    try {
+      await updateProcess(editTarget.id, data)
+      setEditTarget(null)
+    } catch (error) {
+      console.error('Erro ao editar processo:', error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -62,15 +71,10 @@ export default function CompanyProcessesPage({ params }: { params: Promise<{ id:
         <div className="text-center py-12">Carregando...</div>
       ) : processes.length === 0 ? (
         <EmptyState
-          icon="FolderKanban"
+          icon={FolderKanban}
           title="Nenhum processo criado"
           description="Comece criando um novo processo para esta empresa"
-          action={
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Criar Processo
-            </Button>
-          }
+          action={{ label: 'Criar Processo', onClick: () => setCreateOpen(true) }}
         />
       ) : viewMode === 'table' ? (
         <ProcessTable processes={processes} onEdit={setEditTarget} />
@@ -87,7 +91,7 @@ export default function CompanyProcessesPage({ params }: { params: Promise<{ id:
           <ProcessForm
             onSubmit={handleCreate}
             onCancel={() => setCreateOpen(false)}
-            submitting={submitting}
+            isLoading={submitting}
           />
         </DialogContent>
       </Dialog>
@@ -99,10 +103,10 @@ export default function CompanyProcessesPage({ params }: { params: Promise<{ id:
             <DialogTitle>Editar Processo</DialogTitle>
           </DialogHeader>
           <ProcessForm
-            defaultValues={editTarget ?? undefined}
+            initialData={editTarget ?? undefined}
             onSubmit={handleEdit}
             onCancel={() => setEditTarget(null)}
-            submitting={submitting}
+            isLoading={submitting}
           />
         </DialogContent>
       </Dialog>

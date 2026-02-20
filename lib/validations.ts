@@ -7,7 +7,7 @@ import { z } from 'zod'
 export const createCompanySchema = z.object({
   // Dados básicos
   name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
-  cnpj: z.string().optional(),
+  cnpj: z.string().regex(/^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/, 'CNPJ inválido').optional().or(z.literal('')),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
   contact_person: z.string().max(100, 'Nome muito longo').optional(),

@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { updateCompanySchema } from '@/lib/validations'
+import { z } from 'zod'
+
+const uuidSchema = z.string().uuid()
+
+function validateId(id: string) {
+  const result = uuidSchema.safeParse(id)
+  if (!result.success) {
+    return NextResponse.json(
+      { error: 'ID inválido' },
+      { status: 400 }
+    )
+  }
+  return null
+}
 
 /**
  * GET /api/companies/[id]
@@ -8,15 +22,19 @@ import { updateCompanySchema } from '@/lib/validations'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const invalid = validateId(id)
+    if (invalid) return invalid
+
     const supabase = await createClient()
 
     const { data, error } = await supabase
       .from('companies_with_stats')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -50,9 +68,13 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const invalid = validateId(id)
+    if (invalid) return invalid
+
     const supabase = await createClient()
     const body = await request.json()
 
@@ -72,7 +94,7 @@ export async function PATCH(
     const { data, error } = await supabase
       .from('companies')
       .update(validation.data)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -115,12 +137,30 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    const invalid = validateId(id)
+    if (invalid) return invalid
+
     const supabase = await createClient()
 
-    const { error } = await supabase.from('companies').delete().eq('id', params.id)
+    // Check if company exists first
+    const { data: existing } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('id', id)
+      .single()
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Empresa não encontrada' },
+        { status: 404 }
+      )
+    }
+
+    const { error } = await supabase.from('companies').delete().eq('id', id)
 
     if (error) {
       console.error('Error deleting company:', error)
